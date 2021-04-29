@@ -274,7 +274,7 @@
           "unit": "short"
         },
         {
-          "alias": "Width",
+          "alias": "Latency",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -287,7 +287,7 @@
           "pattern": "Value #E",
           "thresholds": [],
           "type": "number",
-          "unit": "hertz"
+          "unit": "ms"
         },
         {
           "alias": "",
@@ -378,7 +378,7 @@
           "refId": "D"
         },
         {
-          "expr": "avg(fritzCable_downstream_width_hz) by (channel)",
+          "expr": "avg(fritzCable_downstream_latency) by (channel)",
           "format": "table",
           "instant": true,
           "refId": "E"

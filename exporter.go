@@ -62,6 +62,7 @@ var (
 		10: newChannelMetric("downstream", "codewords_unerrored_total", "Downstream Unerrored Codewords"),
 		11: newChannelMetric("downstream", "codewords_corrected_total", "Downstream Corrected Codewords"),
 		12: newChannelMetric("downstream", "codewords_uncorrectable_total", "Downstream Uncorrectable Codewords"),
+		13: newChannelMetric("downstream", "latency", "Downstream latency"),
 	}
 
 	upstreamChannelMetrics = metrics{
@@ -352,6 +353,8 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 			value = float64(cableChan.CorrErrors)
 		case 12:
 			value = float64(cableChan.NonCorrErrors)
+		case 13:
+			value = float64(cableChan.Latency)
 		default:
 			continue
 		}
