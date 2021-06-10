@@ -37,7 +37,7 @@ func newChannelMetric(subsystemName, metricName, docString string, extraLabels .
 type metrics map[int]*prometheus.Desc
 
 var (
-	targetUpMetric = prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "up"), "Was the last scrape of TC4400 succesful.", nil, nil)
+	targetUpMetric = prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "up"), "Was the last scrape of Fritzbox succesful.", nil, nil)
 	// FIXME: not parsed yet.
 	networkMetrics = metrics{
 		1: prometheus.NewDesc(prometheus.BuildFQName(namespace, "network", "receive_bytes_total"), "", []string{"interface"}, nil),
