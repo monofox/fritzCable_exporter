@@ -63,6 +63,7 @@ var (
 		11: newChannelMetric("downstream", "codewords_corrected_total", "Downstream Corrected Codewords"),
 		12: newChannelMetric("downstream", "codewords_uncorrectable_total", "Downstream Uncorrectable Codewords"),
 		13: newChannelMetric("downstream", "latency", "Downstream latency"),
+		14: newChannelMetric("downstream", "modulation_clear", "Downstream Modulation in clear value"),
 	}
 
 	upstreamChannelMetrics = metrics{
@@ -73,6 +74,7 @@ var (
 		6: newChannelMetric("upstream", "width_hz", "Upstream Width"),
 		7: newChannelMetric("upstream", "transmit_level_dbmv", "Upstream Transmit Level"),
 		8: newChannelMetric("upstream", "modulation", "Upstream Modulation/Profile ID", "modulation"),
+		9: newChannelMetric("upstream", "modulation_clear", "Upstream Modulation in clear value"),
 	}
 )
 
@@ -355,6 +357,18 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 			value = float64(cableChan.NonCorrErrors)
 		case 13:
 			value = float64(cableChan.Latency)
+		case 14:
+                        numval := strings.Replace(cableChan.Type, "QAM", "", -1)
+			ofdmK := false
+			if (strings.Contains(numval, "K")) {
+				numval = strings.Replace(numval, "K", "", -1)
+				ofdmK = true
+			}
+			convval, _ := strconv.ParseInt(numval, 10, 0)
+			if (ofdmK) {
+				convval = convval * 1024
+			}
+			value = float64(convval)
 		default:
 			continue
 		}
@@ -408,6 +422,18 @@ func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType
 		case 8:
 			labelValues = append(labelValues, cableChan.Type)
 			value = 1
+		case 9:
+                        numval := strings.Replace(cableChan.Type, "QAM", "", -1)
+			ofdmK := false
+			if (strings.Contains(numval, "K")) {
+				numval = strings.Replace(numval, "K", "", -1)
+				ofdmK = true
+			}
+			convval, _ := strconv.ParseInt(numval, 10, 0)
+			if (ofdmK) {
+				convval = convval * 1024
+			}
+			value = float64(convval)
 		default:
 			continue
 		}
