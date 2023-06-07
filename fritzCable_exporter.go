@@ -20,8 +20,8 @@ func main() {
 		listenAddress   = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9623").String()
 		metricsPath     = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		clientScrapeURI = kingpin.Flag("client.scrape-uri", "Base URI on which to scrape Fritzbox Cable.").Default("http://192.168.178.1/").String()
-		clientUsername = kingpin.Flag("client.username", "Username of Fritzbox Cable.").Default("admin").String()
-		clientPassword = kingpin.Flag("client.password", "Password of Fritzbox Cable.").Default("totalsecure").String()
+		clientUsername  = kingpin.Flag("client.username", "Username of Fritzbox Cable.").Default("admin").String()
+		clientPassword  = kingpin.Flag("client.password", "Password of Fritzbox Cable.").Default("totalsecure").String()
 		clientTimeout   = kingpin.Flag("client.timeout", "Timeout for HTTP requests to Fritzbox.").Default("50s").Duration()
 	)
 

@@ -7,11 +7,13 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+
 	//"strings"
+	"crypto/md5"
+	"strings"
 	"sync"
 	"time"
-	"strings"
-	"crypto/md5"
+
 	//"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/text/encoding/unicode"
+
 	//"golang.org/x/crypto/pbkdf2"
 	"github.com/prometheus/common/log"
 )
@@ -79,7 +82,7 @@ var (
 )
 
 type SessionInfo struct {
-	Sid string `xml:"SID"`
+	Sid       string `xml:"SID"`
 	Challenge string `xml:"Challenge"`
 	BlockTime string `xml:"BlockTime"`
 }
@@ -87,68 +90,68 @@ type SessionInfo struct {
 type FritzRoot struct {
 	Data FritzData `json:"data"`
 	Hide FritzHide `json:"hide"`
-	pid string `json:"pid"`
-	sid string `json:"sid"`
+	pid  string    `json:"pid"`
+	sid  string    `json:"sid"`
 }
 
 type FritzData struct {
-	ChannelsDown FritzChannelD `json:"channelDs"`
-	ChannelsUp FritzChannelUs `json:"channelUs"`
-	Oem string `json:"oem"`
+	ChannelsDown FritzChannelD  `json:"channelDs"`
+	ChannelsUp   FritzChannelUs `json:"channelUs"`
+	Oem          string         `json:"oem"`
 }
 
-type FritzChannelD struct{
+type FritzChannelD struct {
 	Channel30 []FritzChannel `json:"docsis30"`
 	Channel31 []FritzChannel `json:"docsis31"`
 }
-type FritzChannelUs struct{
+type FritzChannelUs struct {
 	Channel30 []FritzChannel `json:"docsis30"`
 	Channel31 []FritzChannel `json:"docsis31"`
 }
 
-type FritzChannel struct{
-	Channel int `json:"channel`
-	ChannelId int `json:"channelID`
-	CorrErrors int `json:"corrErrors`
-	Frequency string `json:"frequency"`
-	Latency float32 `json:"latency"`
-	Mse string `json:"mse"`
-	NonCorrErrors int `json:"nonCorrErrors"`
-	Powerlevel string `json:"powerLevel"`
-	Multiplex string `json:"multiplex"`
-	Type string `json:"type"`
+type FritzChannel struct {
+	Channel       int     `json:"channel`
+	ChannelId     int     `json:"channelID`
+	CorrErrors    int     `json:"corrErrors`
+	Frequency     string  `json:"frequency"`
+	Latency       float32 `json:"latency"`
+	Mse           string  `json:"mse"`
+	NonCorrErrors int     `json:"nonCorrErrors"`
+	Powerlevel    string  `json:"powerLevel"`
+	Multiplex     string  `json:"multiplex"`
+	Type          string  `json:"modulation"`
 }
 
 type FritzHide struct {
-	Chan bool `json:"chan"`
-	Dectmail bool `json:"dectMail"`
-	Dectmoni bool `json:"dectMoni"`
+	Chan       bool `json:"chan"`
+	Dectmail   bool `json:"dectMail"`
+	Dectmoni   bool `json:"dectMoni"`
 	Dectmoniex bool `json:"dectMoniEx"`
-	Dvbset bool `json:"dvbSet"`
-	Dvbsig bool `json:"dvbSig"`
-	Dvbradio bool `json:"dvbradio"`
-	Faxset bool `json:"faxSet"`
-	Liveimg bool `json:"liveImg"`
-	Livetv bool `json:"liveTv"`
-	Mobile bool `json:"mobile"`
-	Rss bool `json:"rss"`
-	Shareusb bool `json:"shareUsb"`
-	Ssoset bool `json:"ssoSet"`
-	Tvhd bool `json:"tvhd"`
-	Tvsd bool `json:"tvsd"`
-	Wguest bool `json:"wGuest"`
-	Wkey bool `json:"wKey"`
-	Wlanmesh bool `json:"wlanmesh"`
-	Wps bool `json:"wps"`
+	Dvbset     bool `json:"dvbSet"`
+	Dvbsig     bool `json:"dvbSig"`
+	Dvbradio   bool `json:"dvbradio"`
+	Faxset     bool `json:"faxSet"`
+	Liveimg    bool `json:"liveImg"`
+	Livetv     bool `json:"liveTv"`
+	Mobile     bool `json:"mobile"`
+	Rss        bool `json:"rss"`
+	Shareusb   bool `json:"shareUsb"`
+	Ssoset     bool `json:"ssoSet"`
+	Tvhd       bool `json:"tvhd"`
+	Tvsd       bool `json:"tvsd"`
+	Wguest     bool `json:"wGuest"`
+	Wkey       bool `json:"wKey"`
+	Wlanmesh   bool `json:"wlanmesh"`
+	Wps        bool `json:"wps"`
 }
 
 type Exporter struct {
-	baseURL string
+	baseURL  string
 	username string
 	password string
-	sid string
-	client  *http.Client
-	mutex   sync.RWMutex
+	sid      string
+	client   *http.Client
+	mutex    sync.RWMutex
 
 	totalScrapes          prometheus.Counter
 	parseFailures         *prometheus.CounterVec
@@ -176,8 +179,8 @@ func NewExporter(uri string, username string, password string, timeout time.Dura
 		promhttp.InstrumentRoundTripperDuration(clientRequestDuration, http.DefaultTransport))
 
 	return &Exporter{
-		baseURL: uri,
-		client:  client,
+		baseURL:  uri,
+		client:   client,
 		username: username,
 		password: password,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
@@ -234,10 +237,10 @@ func (e *Exporter) fetch(filename string) (io.ReadCloser, error) {
 	u.Path = path.Join(u.Path, filename)
 
 	resp, err := e.client.PostForm(u.String(), url.Values{
-		"xhr": {"1"},
-		"sid": {e.sid},
-		"lang": {"de"},
-		"page": {"docInfo"},
+		"xhr":   {"1"},
+		"sid":   {e.sid},
+		"lang":  {"de"},
+		"page":  {"docInfo"},
 		"xhrId": {"all"}})
 	if err != nil {
 		return nil, err
@@ -249,7 +252,7 @@ func (e *Exporter) fetch(filename string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (e *Exporter) login() (error) {
+func (e *Exporter) login() error {
 	u, err := url.Parse(e.baseURL)
 	if err != nil {
 		return err
@@ -312,7 +315,6 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 	for i, metric := range downstreamChannelMetrics {
 		var err error = nil
 		var value float64
-		var valueInt int64
 		var labelValues = []string{channelLabel}
 		switch i {
 		case 2:
@@ -328,13 +330,12 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 			if channelType == "OFDM" {
 				// Its a range for OFDM ?
 				freqSplit := strings.Split(cableChan.Frequency, " - ")
-				valueInt, err = strconv.ParseInt(freqSplit[0], 10, 64)
+				value, err = strconv.ParseFloat(freqSplit[0], 64)
 			} else {
-				valueInt, err = strconv.ParseInt(cableChan.Frequency, 10, 64)
+				value, err = strconv.ParseFloat(cableChan.Frequency, 64)
 			}
 			// Fritzbox shows it always in Mhz
-			valueInt = valueInt * 1000000
-			value = float64(valueInt)
+			value = value * 1000000
 		case 6:
 			value = 0.0
 		case 7:
@@ -358,14 +359,14 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 		case 13:
 			value = float64(cableChan.Latency)
 		case 14:
-                        numval := strings.Replace(cableChan.Type, "QAM", "", -1)
+			numval := strings.Replace(cableChan.Type, "QAM", "", -1)
 			ofdmK := false
-			if (strings.Contains(numval, "K")) {
+			if strings.Contains(numval, "K") {
 				numval = strings.Replace(numval, "K", "", -1)
 				ofdmK = true
 			}
 			convval, _ := strconv.ParseInt(numval, 10, 0)
-			if (ofdmK) {
+			if ofdmK {
 				convval = convval * 1024
 			}
 			value = float64(convval)
@@ -392,7 +393,6 @@ func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType
 	for i, metric := range upstreamChannelMetrics {
 		var err error = nil
 		var value float64
-		var valueInt int64
 		var labelValues = []string{channelLabel}
 		switch i {
 		case 2:
@@ -408,13 +408,12 @@ func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType
 			if channelType == "OFDM" {
 				// Its a range for OFDM ?
 				freqSplit := strings.Split(cableChan.Frequency, " - ")
-				valueInt, err = strconv.ParseInt(freqSplit[0], 10, 64)
+				value, err = strconv.ParseFloat(freqSplit[0], 64)
 			} else {
-				valueInt, err = strconv.ParseInt(cableChan.Frequency, 10, 64)
+				value, err = strconv.ParseFloat(cableChan.Frequency, 64)
 			}
 			// Fritzbox shows it always in Mhz
-			valueInt = valueInt * 1000000
-			value = float64(valueInt)
+			value = value * 1000000
 		case 6:
 			value = 0.0
 		case 7:
@@ -423,14 +422,14 @@ func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType
 			labelValues = append(labelValues, cableChan.Type)
 			value = 1
 		case 9:
-                        numval := strings.Replace(cableChan.Type, "QAM", "", -1)
+			numval := strings.Replace(cableChan.Type, "QAM", "", -1)
 			ofdmK := false
-			if (strings.Contains(numval, "K")) {
+			if strings.Contains(numval, "K") {
 				numval = strings.Replace(numval, "K", "", -1)
 				ofdmK = true
 			}
 			convval, _ := strconv.ParseInt(numval, 10, 0)
-			if (ofdmK) {
+			if ofdmK {
 				convval = convval * 1024
 			}
 			value = float64(convval)

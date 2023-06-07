@@ -3,7 +3,9 @@
 This is a Prometheus exporter for the FRITZ!Box DOCSIS 3.1 cable modem.
 It gathers metrics by scraping the modem's web interface.
 
-This was developed using a FRITZ!Box 6591 (Vodafone) in version 07.21, untested on other releases.
+This was developed using a FRITZ!Box 6591 (Vodafone) in version 07.50, untested on other releases.
+
+Please use previous tag / version as there were breaking changes with 07.50 release.
 
 A scrape is pretty fast - configuration can be as following:
 
