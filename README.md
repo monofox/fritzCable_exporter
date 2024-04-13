@@ -24,6 +24,9 @@ Known issues:
 * Authentication works only with username + password!
 * PBKDF2 is not yet supported (my test devices do not support the new challenge mode)
 
+## Docker
+Image is available at Github Packages via `ghcr.io/monofox/fritzcable_exporter:main`.
+
 ## Contribution
 Your contributions are more than welcome. Just clone, change and make a pull-request.
 

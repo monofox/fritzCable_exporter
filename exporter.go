@@ -10,6 +10,7 @@ import (
 
 	//"strings"
 	"crypto/md5"
+	"crypto/tls"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
-	"io/ioutil"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	channelLabelNames   = []string{"channel"}
-	interfaceLabelNames = []string{"interface"}
+	channelLabelNames = []string{"channel"}
+	// interfaceLabelNames = []string{"interface"}
 )
 
 func newChannelMetric(subsystemName, metricName, docString string, extraLabels ...string) *prometheus.Desc {
@@ -90,8 +90,8 @@ type SessionInfo struct {
 type FritzRoot struct {
 	Data FritzData `json:"data"`
 	Hide FritzHide `json:"hide"`
-	pid  string    `json:"pid"`
-	sid  string    `json:"sid"`
+	// pid  string    `json:"pid"`
+	// sid  string    `json:"sid"`
 }
 
 type FritzData struct {
@@ -110,9 +110,9 @@ type FritzChannelUs struct {
 }
 
 type FritzChannel struct {
-	Channel       int     `json:"channel`
-	ChannelId     int     `json:"channelID`
-	CorrErrors    int     `json:"corrErrors`
+	Channel       int     `json:"channel"`
+	ChannelId     int     `json:"channelID"`
+	CorrErrors    int     `json:"corrErrors"`
 	Frequency     string  `json:"frequency"`
 	Latency       float32 `json:"latency"`
 	Mse           string  `json:"mse"`
@@ -146,12 +146,13 @@ type FritzHide struct {
 }
 
 type Exporter struct {
-	baseURL  string
-	username string
-	password string
-	sid      string
-	client   *http.Client
-	mutex    sync.RWMutex
+	baseURL    string
+	username   string
+	password   string
+	ignoreCert bool
+	sid        string
+	client     *http.Client
+	mutex      sync.RWMutex
 
 	totalScrapes          prometheus.Counter
 	parseFailures         *prometheus.CounterVec
@@ -159,9 +160,10 @@ type Exporter struct {
 	clientRequestDuration *prometheus.HistogramVec
 }
 
-func NewExporter(uri string, username string, password string, timeout time.Duration) (*Exporter, error) {
-	client := &http.Client{}
-	client.Timeout = timeout
+func NewExporter(uri string, username string, password string, timeout time.Duration, ignoreCert bool) (*Exporter, error) {
+	clientTransport := http.DefaultTransport.(*http.Transport).Clone()
+	clientTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ignoreCert}
+	client := &http.Client{Transport: clientTransport, Timeout: timeout}
 
 	clientRequestCount := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
@@ -179,10 +181,11 @@ func NewExporter(uri string, username string, password string, timeout time.Dura
 		promhttp.InstrumentRoundTripperDuration(clientRequestDuration, http.DefaultTransport))
 
 	return &Exporter{
-		baseURL:  uri,
-		client:   client,
-		username: username,
-		password: password,
+		baseURL:    uri,
+		client:     client,
+		username:   username,
+		password:   password,
+		ignoreCert: ignoreCert,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "exporter_scrapes_total",
@@ -247,7 +250,7 @@ func (e *Exporter) fetch(filename string) (io.ReadCloser, error) {
 	}
 	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
 		resp.Body.Close()
-		return nil, fmt.Errorf("Scraping %s failed: HTTP status %d", u.String(), resp.StatusCode)
+		return nil, fmt.Errorf("scraping %s failed: http status %d", u.String(), resp.StatusCode)
 	}
 	return resp.Body, nil
 }
@@ -263,29 +266,30 @@ func (e *Exporter) login() error {
 		return err
 	}
 
-	byteValue, _ := ioutil.ReadAll(resp.Body)
+	byteValue, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	var sessionInfo SessionInfo
-	xml.Unmarshal(byteValue, &sessionInfo)
-	fmt.Println(sessionInfo.Challenge)
+	if err := xml.Unmarshal(byteValue, &sessionInfo); err != nil {
+		return err
+	}
 	if string(sessionInfo.Challenge[0:2]) == "2$" {
 		// SHA256, pbkdf2 hash
 		//string(sessionInfo.Challenge[0:2]))
 		//salt := []byte("asdf")
 		//dk := pbkdf2.Key([]byte(e.password), salt, 256, 32, sha256.New)
 		//fmt.Println(dk)
-		fmt.Println("Not supported")
+		return fmt.Errorf("pbkdf2 hash algorithm for login is not supported")
 	}
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	prepPassword := sessionInfo.Challenge + "-" + e.password
 	encoded, err := utf16.NewEncoder().String(prepPassword)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 		return err
 	}
 	md5Hex := md5.Sum([]byte(encoded))
 	md5Challenge := sessionInfo.Challenge + "-" + hex.EncodeToString(md5Hex[:])
-	fmt.Println(md5Challenge)
+	log.Debugf("MD5 challenge: %s", md5Challenge)
 	// no login via Post
 	resp, err = e.client.PostForm(u.String(), url.Values{
 		"username": {e.username},
@@ -295,17 +299,19 @@ func (e *Exporter) login() error {
 	}
 	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
 		resp.Body.Close()
-		return fmt.Errorf("Scraping %s failed: HTTP status %d", u.String(), resp.StatusCode)
+		return fmt.Errorf("scraping %s failed: http status %d", u.String(), resp.StatusCode)
 	}
-	byteValue, _ = ioutil.ReadAll(resp.Body)
-	xml.Unmarshal(byteValue, &sessionInfo)
+	byteValue, _ = io.ReadAll(resp.Body)
+	if err := xml.Unmarshal(byteValue, &sessionInfo); err != nil {
+		return err
+	}
 	e.sid = sessionInfo.Sid
 	resp.Body.Close()
 	return nil
 }
 
 func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType string, cableChan FritzChannel) {
-	fmt.Println("ChannelId: " + strconv.Itoa(cableChan.ChannelId))
+	log.Debugf("ChannelId: %s", strconv.Itoa(cableChan.ChannelId))
 	channelLabel := ""
 	if channelType == "OFDM" {
 		channelLabel = "O"
@@ -383,7 +389,7 @@ func parseDownstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelTy
 }
 
 func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType string, cableChan FritzChannel) {
-	fmt.Println("ChannelId: " + strconv.Itoa(cableChan.ChannelId))
+	log.Debugf("ChannelId: %s", strconv.Itoa(cableChan.ChannelId))
 	channelLabel := ""
 	if channelType == "OFDM" {
 		channelLabel = "O"
@@ -447,15 +453,21 @@ func parseUpstreamChannels(ch chan<- prometheus.Metric, e *Exporter, channelType
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) (up float64) {
 	e.totalScrapes.Inc()
-	e.login()
+	if err := e.login(); err != nil {
+		log.Errorf("failed to login - scraping not possible: %s", err.Error())
+		return 0
+	}
 
 	body, err := e.fetch("data.lua")
 	if err == nil {
 		var docInfo FritzRoot
-		byteValue, _ := ioutil.ReadAll(body)
-		json.Unmarshal(byteValue, &docInfo)
+		byteValue, _ := io.ReadAll(body)
+		if err := json.Unmarshal(byteValue, &docInfo); err != nil {
+			log.Errorf("failed parsing metrics details as JSON document: %s", err.Error())
+			return 0
+		}
 		for i := 0; i < len(docInfo.Data.ChannelsDown.Channel30); i++ {
-			fmt.Println("ChannelId: " + strconv.Itoa(docInfo.Data.ChannelsDown.Channel30[i].ChannelId))
+			log.Debugf("ChannelId: %s", strconv.Itoa(docInfo.Data.ChannelsDown.Channel30[i].ChannelId))
 		}
 		body.Close()
 
