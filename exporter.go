@@ -22,10 +22,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/text/encoding/unicode"
-
-	//"golang.org/x/crypto/pbkdf2"
 	"github.com/prometheus/common/log"
+	"golang.org/x/text/encoding/unicode"
+	//"golang.org/x/crypto/pbkdf2"
 )
 
 var (
@@ -112,11 +111,11 @@ type FritzChannelUs struct {
 type FritzChannel struct {
 	Channel       int     `json:"channel"`
 	ChannelId     int     `json:"channelID"`
-	CorrErrors    int     `json:"corrErrors"`
+	CorrErrors    float64 `json:"corrErrors"`
 	Frequency     string  `json:"frequency"`
 	Latency       float32 `json:"latency"`
 	Mse           string  `json:"mse"`
-	NonCorrErrors int     `json:"nonCorrErrors"`
+	NonCorrErrors float64 `json:"nonCorrErrors"`
 	Powerlevel    string  `json:"powerLevel"`
 	Multiplex     string  `json:"multiplex"`
 	Type          string  `json:"modulation"`
